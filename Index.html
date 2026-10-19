@@ -1,0 +1,1490 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #fcfcfc;
+      }
+      .input-field {
+        display: block !important;
+        height: 2.25rem;
+        width: 100%;
+        min-width: 160px;
+        border-radius: 0.375rem;
+        border: 1.5px solid #6b7280 !important;
+        background-color: #ffffff;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.875rem;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important;
+        transition: border 0.2s ease;
+        color: #18181b;
+        box-sizing: border-box;
+      }
+      .input-field:focus {
+        outline: none !important;
+        border: 2px solid #000000 !important;
+      }
+      .table-header {
+        @apply px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider bg-zinc-50 border-b border-zinc-300 whitespace-nowrap sticky top-0 z-10;
+      }
+      .table-cell {
+        @apply px-4 py-2 border-b border-zinc-200 align-middle bg-white;
+      }
+      details > summary {
+        list-style: none;
+      }
+      details > summary::-webkit-details-marker {
+        display: none;
+      }
+      .multi-select-content {
+        @apply absolute z-50 mt-1 w-64 bg-white border-2 border-zinc-400 shadow-xl rounded-md p-2 max-h-60 overflow-y-auto;
+      }
+      .checkbox-item {
+        @apply flex items-center gap-2 px-2 py-1.5 hover:bg-zinc-50 rounded-md cursor-pointer text-sm w-full;
+      }
+      .table-container {
+        max-height: calc(100vh - 200px);
+        overflow: auto;
+      }
+      .custom-scroll::-webkit-scrollbar {
+        width: 6px;
+      }
+      .custom-scroll::-webkit-scrollbar-track {
+        background: #f1f1f1;
+      }
+      .custom-scroll::-webkit-scrollbar-thumb {
+        background: #d4d4d8;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body class="text-zinc-900 antialiased relative">
+    <div
+      id="loadingOverlay"
+      style="display: none; flex-direction: column; z-index: 999999"
+      class="fixed inset-0 bg-white/80 backdrop-blur-sm items-center justify-center"
+    >
+      <div
+        class="animate-spin rounded-full h-12 w-12 border-b-2 border-zinc-900 mb-4"
+      ></div>
+      <p id="loadingText" class="text-zinc-700 font-medium">Procesando...</p>
+    </div>
+
+    <div
+      id="imageModal"
+      style="
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 99999;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      "
+      class="fixed inset-0 bg-black/90 backdrop-blur-sm p-4"
+    >
+      <button
+        type="button"
+        onclick="closeImage()"
+        class="absolute top-6 right-6 text-white hover:text-zinc-300 bg-zinc-800 p-2 rounded-full shadow-lg border border-zinc-600"
+      >
+        <i data-lucide="x" class="w-6 h-6 pointer-events-none"></i>
+      </button>
+      <img
+        id="modalImg"
+        src=""
+        class="max-w-full max-h-full rounded-lg shadow-2xl object-contain border border-zinc-800"
+      />
+    </div>
+
+    <div
+      id="galleryModal"
+      style="
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 99998;
+      "
+      class="fixed inset-0 bg-zinc-900/60 backdrop-blur-sm p-4"
+    >
+      <div
+        class="bg-white rounded-xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[85vh]"
+      >
+        <div
+          class="flex items-center justify-between p-5 border-b border-zinc-200"
+        >
+          <div>
+            <h3 class="font-semibold text-lg">Imágenes</h3>
+            <p class="text-xs text-zinc-500" id="galleryAnimalName">
+              Gestiona las imágenes
+            </p>
+          </div>
+          <button
+            type="button"
+            onclick="closeGallery()"
+            class="text-zinc-400 hover:text-zinc-700 p-1 bg-zinc-100 rounded-md"
+          >
+            <i data-lucide="x" class="w-5 h-5 pointer-events-none"></i>
+          </button>
+        </div>
+        <div
+          class="p-5 flex-1 overflow-y-auto custom-scroll space-y-3 bg-zinc-50"
+          id="galleryList"
+        ></div>
+        <div
+          class="p-5 border-t border-zinc-200 flex justify-between items-center bg-white rounded-b-xl"
+        >
+          <button
+            type="button"
+            onclick="addGalleryItem()"
+            class="text-sm font-medium text-zinc-600 hover:text-zinc-900 flex items-center bg-white hover:bg-zinc-100 px-3 py-1.5 rounded-md border border-zinc-400"
+          >
+            <i data-lucide="plus" class="w-4 h-4 mr-1"></i> Añadir URL
+          </button>
+          <div class="space-x-2">
+            <button
+              type="button"
+              onclick="closeGallery()"
+              class="px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-md border border-zinc-300"
+            >
+              Cancelar</button
+            ><button
+              type="button"
+              onclick="saveGallery()"
+              class="px-4 py-2 text-sm font-medium text-white bg-zinc-900 hover:bg-zinc-800 rounded-md shadow-sm"
+            >
+              Guardar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="variationsModal"
+      style="
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 99998;
+      "
+      class="fixed inset-0 bg-zinc-900/60 backdrop-blur-sm p-4"
+    >
+      <div
+        class="bg-white rounded-xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[85vh]"
+      >
+        <div
+          class="flex items-center justify-between p-5 border-b border-zinc-200"
+        >
+          <div>
+            <h3 class="font-semibold text-lg">Tipo de Inversión</h3>
+            <p class="text-xs text-zinc-500" id="variationsAnimalName">
+              Gestiona las opciones de venta
+            </p>
+          </div>
+          <div class="px-5 pt-4 bg-white flex justify-between items-center">
+            <p class="text-xs text-zinc-500">
+              Agrega únicamente los tipos de inversión que correspondan a este animal.
+            </p>
+            <div class="flex gap-2">
+              <button
+                type="button"
+                onclick="openInvestmentTypes()"
+                class="px-3 py-1.5 text-xs font-medium text-zinc-700 bg-white hover:bg-zinc-100 rounded-md border border-zinc-400"
+              >
+                Gestionar tipos
+              </button>
+              <button
+                type="button"
+                onclick="addVariation()"
+                class="px-3 py-1.5 text-xs font-medium text-white bg-zinc-900 hover:bg-zinc-800 rounded-md"
+              >
+                Añadir tipo
+              </button>
+            </div>
+          </div>
+          <button
+            type="button"
+            onclick="closeVariations()"
+            class="text-zinc-400 hover:text-zinc-700 p-1 bg-zinc-100 rounded-md"
+          >
+            <i data-lucide="x" class="w-5 h-5 pointer-events-none"></i>
+          </button>
+        </div>
+        <div class="px-5 pt-4 pb-2 bg-zinc-50 flex gap-2">
+          <div class="w-8"></div>
+          <div class="flex-1 text-xs font-semibold text-zinc-500 uppercase">
+            Tipo
+          </div>
+          <div class="w-40 text-xs font-semibold text-zinc-500 uppercase">
+            Precio
+          </div>
+        </div>
+        <div
+          class="p-5 pt-0 flex-1 overflow-y-auto custom-scroll space-y-3 bg-zinc-50"
+          id="variationsList"
+        ></div>
+        <div
+          class="p-5 border-t border-zinc-200 flex justify-end items-center bg-white rounded-b-xl"
+        >
+          <div class="space-x-2">
+            <button
+              type="button"
+              onclick="closeVariations()"
+              class="px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-md border border-zinc-300"
+            >
+              Cancelar</button
+            ><button
+              type="button"
+              onclick="saveVariations()"
+              class="px-4 py-2 text-sm font-medium text-white bg-zinc-900 hover:bg-zinc-800 rounded-md shadow-sm"
+            >
+              Guardar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="investmentTypesModal"
+      style="display: none; align-items: center; justify-content: center; z-index: 100000"
+      class="fixed inset-0 bg-zinc-900/60 backdrop-blur-sm p-4"
+    >
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[80vh]">
+        <div class="flex items-center justify-between p-5 border-b border-zinc-200">
+          <div>
+            <h3 class="font-semibold text-lg">Tipos de inversión</h3>
+            <p class="text-xs text-zinc-500">Crear, editar o eliminar opciones reutilizables.</p>
+          </div>
+          <button type="button" onclick="closeInvestmentTypes()" class="text-zinc-400 hover:text-zinc-700 p-1 bg-zinc-100 rounded-md">
+            <i data-lucide="x" class="w-5 h-5 pointer-events-none"></i>
+          </button>
+        </div>
+        <div id="investmentTypesList" class="p-5 flex-1 overflow-y-auto custom-scroll space-y-2"></div>
+        <div class="p-5 border-t border-zinc-200 flex justify-between bg-white rounded-b-xl">
+          <button type="button" onclick="addInvestmentType()" class="px-3 py-2 text-sm font-medium text-zinc-700 bg-white hover:bg-zinc-100 rounded-md border border-zinc-400">
+            <i data-lucide="plus" class="w-4 h-4 inline-block mr-1"></i>Añadir tipo
+          </button>
+          <button type="button" onclick="closeInvestmentTypes()" class="px-4 py-2 text-sm font-medium text-white bg-zinc-900 hover:bg-zinc-800 rounded-md">
+            Listo
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <datalist id="list-categoria">
+      <option value="Cielos"></option>
+      <option value="Estrellas"></option>
+      <option value="Otros"></option></datalist
+    ><datalist id="list-estado">
+      <option value="Vaca"></option>
+      <option value="Novilla de vientre"></option>
+      <option value="Toro"></option></datalist
+    ><datalist id="list-origen">
+      <option value="Nacional"></option>
+      <option value="Brasilero"></option></datalist
+    ><datalist id="list-inversiones">
+      <option value="Aspiración"></option>
+      <option value="Crías vivas"></option>
+      <option value="Embrión DT"></option>
+      <option value="Preñez de 90 días"></option>
+    </datalist>
+
+    <header
+      class="border-b border-zinc-200 bg-white sticky top-0 z-20 shadow-sm"
+    >
+      <div class="w-full px-6 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i
+            data-lucide="shield-check"
+            class="w-6 h-6 text-zinc-900 pointer-events-none"
+          ></i
+          ><span class="font-bold tracking-tight"
+            >WooAdmin <span class="font-normal text-zinc-400">PRO</span></span
+          >
+        </div>
+        <div class="flex items-center gap-3">
+          <input
+            type="file"
+            id="csvFileInput"
+            accept=".csv"
+            class="hidden"
+            onchange="handleFileUpload(event)"
+          />
+          <button
+            type="button"
+            onclick="document.getElementById('csvFileInput').click()"
+            class="inline-flex items-center px-4 py-2 text-sm font-medium border border-zinc-400 shadow-sm rounded-md bg-white hover:bg-zinc-50"
+          >
+            <i
+              data-lucide="upload"
+              class="w-4 h-4 mr-2 pointer-events-none"
+            ></i>
+            Cargar CSV
+          </button>
+          <button
+            type="button"
+            onclick="addAnimal()"
+            class="hidden inline-flex items-center px-4 py-2 text-sm font-medium border border-zinc-400 shadow-sm rounded-md bg-white hover:bg-zinc-50"
+            id="btnNewAnimal"
+          >
+            <i data-lucide="plus" class="w-4 h-4 mr-2 pointer-events-none"></i>
+            Nuevo Animal
+          </button>
+          <div class="hidden relative w-64" id="searchBox">
+            <i
+              data-lucide="search"
+              class="absolute left-3 top-2.5 w-4 h-4 text-zinc-500 pointer-events-none"
+            ></i
+            ><input
+              type="search"
+              id="animalSearch"
+              placeholder="Buscar por nombre..."
+              oninput="filtrarAnimales(this.value)"
+              class="input-field pl-9 pr-9"
+            /><button
+              type="button"
+              onclick="limpiarBusqueda()"
+              title="Limpiar búsqueda"
+              class="absolute right-2 top-1.5 p-1 text-zinc-500 hover:text-zinc-900"
+            >
+              <i data-lucide="x" class="w-4 h-4 pointer-events-none"></i>
+            </button>
+          </div>
+          <button
+            type="button"
+            onclick="exportarCSV()"
+            class="hidden inline-flex items-center bg-zinc-900 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-zinc-800 shadow-sm"
+            id="btnExport"
+          >
+            <i
+              data-lucide="download"
+              class="w-4 h-4 mr-2 pointer-events-none"
+            ></i>
+            Exportar
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="w-full px-6 mt-6 pb-10">
+      <div
+        id="emptyState"
+        class="flex flex-col items-center justify-center py-32 border-2 border-dashed border-zinc-400 rounded-xl bg-white shadow-sm"
+      >
+        <div class="bg-zinc-100 p-4 rounded-full mb-4">
+          <i
+            data-lucide="file-spreadsheet"
+            class="w-8 h-8 text-zinc-500 pointer-events-none"
+          ></i>
+        </div>
+        <h2 class="text-xl font-semibold mb-2">No hay datos cargados</h2>
+        <p class="text-zinc-500 mb-6">
+          Sube un CSV o empieza un catálogo desde cero.
+        </p>
+        <div class="flex gap-4">
+          <button
+            onclick="document.getElementById('csvFileInput').click()"
+            class="bg-white border border-zinc-400 px-6 py-2 rounded-md font-medium hover:bg-zinc-50 shadow-sm"
+          >
+            Cargar Archivo
+          </button>
+          <button
+            onclick="iniciarDesdeCero()"
+            class="bg-zinc-900 text-white px-6 py-2 rounded-md font-medium hover:bg-zinc-800 shadow-sm"
+          >
+            Empezar desde Cero
+          </button>
+        </div>
+      </div>
+
+      <div id="adminPanel" class="hidden">
+        <div
+          class="border border-zinc-300 rounded-lg bg-white shadow-sm table-container"
+          id="scrollContainer"
+        >
+          <table class="w-full min-w-max border-collapse">
+            <thead>
+              <tr>
+                <th
+                  class="table-header bg-amber-50/50 border-r border-amber-200"
+                >
+                  Imágenes
+                </th>
+                <th
+                  class="table-header bg-indigo-50/50 border-r border-indigo-200"
+                >
+                  Tipo de inversión
+                </th>
+                <th class="table-header">Categorías</th>
+                <th class="table-header">Nombre</th>
+                <th class="table-header">Número Animal</th>
+                <th class="table-header">Genealogía</th>
+                <th class="table-header">Registro</th>
+                <th class="table-header">Estado</th>
+                <th class="table-header">Publicación</th>
+                <th class="table-header">Raza</th>
+                <th class="table-header">Origen</th>
+                <th class="table-header border-l border-zinc-300">Sellos</th>
+                <th class="table-header bg-blue-50/50">Padre</th>
+                <th class="table-header bg-blue-50/50">Nro Padre</th>
+                <th class="table-header bg-blue-50/50">Abuelo Pat.</th>
+                <th class="table-header bg-blue-50/50">Nro Ab. Pat.</th>
+                <th class="table-header bg-blue-50/50">Abuela Pat.</th>
+                <th class="table-header bg-blue-50/50">Nro Ab. Pat.</th>
+                <th class="table-header bg-pink-50/50">Madre</th>
+                <th class="table-header bg-pink-50/50">Nro Madre</th>
+                <th class="table-header bg-pink-50/50">Abuelo Mat.</th>
+                <th class="table-header bg-pink-50/50">Nro Ab. Mat.</th>
+                <th class="table-header bg-pink-50/50">Abuela Mat.</th>
+                <th class="table-header bg-pink-50/50">Nro Ab. Mat.</th>
+                <th class="table-header bg-green-50/50">Pariente 1</th>
+                <th class="table-header bg-green-50/50">Parentesco 1</th>
+                <th class="table-header bg-green-50/50">Foto Pariente 1</th>
+                <th class="table-header bg-green-50/50">Pariente 2</th>
+                <th class="table-header bg-green-50/50">Parentesco 2</th>
+                <th class="table-header bg-green-50/50">Foto Pariente 2</th>
+                <th class="table-header text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      lucide.createIcons();
+      let globalIdCounter = Math.floor(Date.now() / 1000);
+      let originalHeaders = [];
+      let animals = [];
+      let orphanedVariations = [];
+      let animalsParaExportar = [];
+      const mediaCache = { idToUrl: {}, urlToId: {} };
+      let investmentTypes = [
+        'Aspiración',
+        'Crías vivas',
+        'Embrión DT',
+        'Preñez de 90 días',
+      ];
+
+      const DEFAULT_HEADERS = [
+        'ID',
+        'Tipo',
+        'SKU',
+        'GTIN, UPC, EAN o ISBN',
+        'Nombre',
+        'Publicado',
+        '¿Está destacado?',
+        'Visibilidad en el catálogo',
+        'Descripción corta',
+        'Descripción',
+        'Día en que empieza el precio rebajado',
+        'Día en que termina el precio rebajado',
+        'Estado del impuesto',
+        'Clase de impuesto',
+        '¿Existencias?',
+        'Inventario',
+        'Cantidad de bajo inventario',
+        '¿Permitir reservas de productos agotados?',
+        '¿Vendido individualmente?',
+        'Peso (kg)',
+        'Longitud (cm)',
+        'Anchura (cm)',
+        'Altura (cm)',
+        '¿Permitir valoraciones de clientes?',
+        'Nota de compra',
+        'Precio rebajado',
+        'Precio normal',
+        'Categorías',
+        'Etiquetas',
+        'Clase de envío',
+        'Imágenes',
+        'Límite de descargas',
+        'Días de caducidad de la descarga',
+        'Superior',
+        'Productos agrupados',
+        'Ventas dirigidas',
+        'Ventas cruzadas',
+        'URL externa',
+        'Texto del botón',
+        'Posición',
+        'Swatches Attributes',
+        'Marcas',
+        'Nombre del atributo 1',
+        'Valor(es) del atributo 1',
+        'Atributo visible 1',
+        'Atributo global 1',
+        'Nombre del atributo 2',
+        'Valor(es) del atributo 2',
+        'Atributo visible 2',
+        'Atributo global 2',
+        'Nombre del atributo 3',
+        'Valor(es) del atributo 3',
+        'Atributo visible 3',
+        'Atributo global 3',
+        'Nombre del atributo 4',
+        'Valor(es) del atributo 4',
+        'Atributo visible 4',
+        'Atributo global 4',
+        'Nombre del atributo 5',
+        'Valor(es) del atributo 5',
+        'Atributo visible 5',
+        'Atributo global 5',
+        'Meta: numero_animal',
+        'Meta: genealogia',
+        'Meta: _numero_animal',
+        'Meta: numero_registro',
+        'Meta: _numero_registro',
+        'Meta: raza',
+        'Meta: _raza',
+        'Meta: nombre_padre',
+        'Meta: _nombre_padre',
+        'Meta: numero_padre',
+        'Meta: _numero_padre',
+        'Meta: nombre_abuelo_paterno',
+        'Meta: _nombre_abuelo_paterno',
+        'Meta: numero_abuelo_paterno',
+        'Meta: _numero_abuelo_paterno',
+        'Meta: nombre_abuela_paterna',
+        'Meta: _nombre_abuela_paterna',
+        'Meta: numero_abuela_paterna',
+        'Meta: _numero_abuela_paterna',
+        'Meta: nombre_madre',
+        'Meta: _nombre_madre',
+        'Meta: numero_madre',
+        'Meta: _numero_madre',
+        'Meta: nombre_abuelo_materno',
+        'Meta: _nombre_abuelo_materno',
+        'Meta: numero_abuelo_materno',
+        'Meta: _numero_abuelo_materno',
+        'Meta: nombre_abuela_materna',
+        'Meta: _nombre_abuela_materna',
+        'Meta: numero_abuela_materna',
+        'Meta: _numero_abuela_materna',
+        'Meta: nombre_pariente',
+        'Meta: _nombre_pariente',
+        'Meta: parentesco_1',
+        'Meta: _parentesco_1',
+        'Meta: foto_pariente_1',
+        'Meta: _foto_pariente_1',
+        'Meta: nombre_pariente_2',
+        'Meta: _nombre_pariente_2',
+        'Meta: parentesco_2',
+        'Meta: _parentesco_2',
+        'Meta: foto_pariente_2',
+        'Meta: _foto_pariente_2',
+        'Meta: ovocitos',
+        'Meta: _ovocitos',
+        'Meta: ubre',
+        'Meta: _ubre',
+        'Meta: estructura',
+        'Meta: _estructura',
+        'Meta: volumen_de_produccion',
+        'Meta: _volumen_de_produccion',
+        'Meta: madre_sobresaliente',
+        'Meta: _madre_sobresaliente',
+        'Meta: probada_de_pastoreo',
+        'Meta: _probada_de_pastoreo',
+        'Meta: a2a2',
+        'Meta: _a2a2',
+        'Meta: genoma',
+        'Meta: _genoma',
+        'Meta: pista',
+        'Meta: _pista',
+      ];
+
+      const COL = {
+        ID: 'ID',
+        SKU: 'SKU',
+        SUPERIOR: 'Superior',
+        TIPO: 'Tipo',
+        CAT: 'Categorías',
+        NOMBRE: 'Nombre',
+        IMAGEN: 'Imágenes',
+        PRECIO: 'Precio normal',
+        PUB: 'Publicado',
+        DEST: '¿Está destacado?',
+        VIS: 'Visibilidad en el catálogo',
+        IMP_EST: 'Estado del impuesto',
+        IMP_CLA: 'Clase de impuesto',
+        EXIST: '¿Existencias?',
+        RES: '¿Permitir reservas de productos agotados?',
+        V_IND: '¿Vendido individualmente?',
+        VALOR: '¿Permitir valoraciones de clientes?',
+        POS: 'Posición',
+        A1_VAL: 'Valor(es) del atributo 1',
+        A1_NAME: 'Nombre del atributo 1',
+        A1_VIS: 'Atributo visible 1',
+        A1_GLO: 'Atributo global 1',
+        A2_VAL: 'Valor(es) del atributo 2',
+        A2_NAME: 'Nombre del atributo 2',
+        A2_VIS: 'Atributo visible 2',
+        A2_GLO: 'Atributo global 2',
+        A3_VAL: 'Valor(es) del atributo 3',
+        A3_NAME: 'Nombre del atributo 3',
+        A3_VIS: 'Atributo visible 3',
+        A3_GLO: 'Atributo global 3',
+        A4_VAL: 'Valor(es) del atributo 4',
+        A4_NAME: 'Nombre del atributo 4',
+        A4_VIS: 'Atributo visible 4',
+        A4_GLO: 'Atributo global 4',
+        A5_VAL: 'Valor(es) del atributo 5',
+        A5_NAME: 'Nombre del atributo 5',
+        A5_VIS: 'Atributo visible 5',
+        A5_GLO: 'Atributo global 5',
+        M_NUM: 'Meta: numero_animal',
+        M_GENEALOGIA: 'Meta: genealogia',
+        M_REG: 'Meta: numero_registro',
+        M_RAZA: 'Meta: raza',
+        M_PADRE: 'Meta: nombre_padre',
+        M_PADRE_N: 'Meta: numero_padre',
+        M_ABU_P: 'Meta: nombre_abuelo_paterno',
+        M_ABU_P_N: 'Meta: numero_abuelo_paterno',
+        M_ABA_P: 'Meta: nombre_abuela_paterna',
+        M_ABA_P_N: 'Meta: numero_abuela_paterna',
+        M_MADRE: 'Meta: nombre_madre',
+        M_MADRE_N: 'Meta: numero_madre',
+        M_ABU_M: 'Meta: nombre_abuelo_materno',
+        M_ABU_M_N: 'Meta: numero_abuelo_materno',
+        M_ABA_M: 'Meta: nombre_abuela_materna',
+        M_ABA_M_N: 'Meta: numero_abuela_materna',
+        M_PAR1: 'Meta: nombre_pariente',
+        M_PAR1_T: 'Meta: parentesco_1',
+        M_PAR1_F: 'Meta: foto_pariente_1',
+        M_PAR2: 'Meta: nombre_pariente_2',
+        M_PAR2_T: 'Meta: parentesco_2',
+        M_PAR2_F: 'Meta: foto_pariente_2',
+        M_OVO: 'Meta: ovocitos',
+        M_UBRE: 'Meta: ubre',
+        M_EST: 'Meta: estructura',
+        M_VOL: 'Meta: volumen_de_produccion',
+        M_MSOB: 'Meta: madre_sobresaliente',
+        M_PPAST: 'Meta: probada_de_pastoreo',
+        M_A2A2: 'Meta: a2a2',
+        M_GEN: 'Meta: genoma',
+        M_PISTA: 'Meta: pista',
+      };
+
+      const ACF_KEYS = {
+        'Meta: _numero_animal': 'field_69971dae898cd',
+        'Meta: _numero_registro': 'field_69971e01898ce',
+        'Meta: _raza': 'field_699792b71acfc',
+        'Meta: _nombre_padre': 'field_6997383d953c5',
+        'Meta: _numero_padre': 'field_69973845953c6',
+        'Meta: _nombre_abuelo_paterno': 'field_69973870953c9',
+        'Meta: _numero_abuelo_paterno': 'field_69973935953cd',
+        'Meta: _nombre_abuela_paterna': 'field_699738d4953ca',
+        'Meta: _numero_abuela_paterna': 'field_69973944953ce',
+        'Meta: _nombre_madre': 'field_69973816953c3',
+        'Meta: _numero_madre': 'field_69973831953c4',
+        'Meta: _nombre_abuelo_materno': 'field_6997384d953c7',
+        'Meta: _numero_abuelo_materno': 'field_699738f0953cb',
+        'Meta: _nombre_abuela_materna': 'field_6997385c953c8',
+        'Meta: _numero_abuela_materna': 'field_69973907953cc',
+        'Meta: _nombre_pariente': 'field_69973a021c8e3',
+        'Meta: _parentesco_1': 'field_69973a211c8e4',
+        'Meta: _foto_pariente_1': 'field_69973a401c8e5',
+        'Meta: _nombre_pariente_2': 'field_69973a6b1c8e6',
+        'Meta: _parentesco_2': 'field_69973a811c8e7',
+        'Meta: _foto_pariente_2': 'field_69973a8d1c8e8',
+        'Meta: _ovocitos': 'field_6997359952501',
+        'Meta: _ubre': 'field_699735d852502',
+        'Meta: _estructura': 'field_699735eb52503',
+        'Meta: _volumen_de_produccion': 'field_699735f852504',
+        'Meta: _madre_sobresaliente': 'field_6997360d52505',
+        'Meta: _probada_de_pastoreo': 'field_6997362152506',
+        'Meta: _a2a2': 'field_6997363c52507',
+        'Meta: _genoma': 'field_6997364c52508',
+        'Meta: _pista': 'field_6997365752509',
+      };
+      const OPTS_SELLOS = [
+        'A2A2',
+        'Estructura',
+        'Genoma',
+        'Madre sobresaliente',
+        'Ovocitos',
+        'Pista',
+        'Probada de pastoreo',
+        'Ubre',
+        'Volumen de producción',
+      ];
+
+      function valorPublicado(value) {
+        return ['1', 'sí', 'si', 'yes', 'true', 'publicado'].includes(
+          (value || '').toString().trim().toLowerCase(),
+        );
+      }
+
+      function syncInvestmentTypes() {
+        const datalist = document.getElementById('list-inversiones');
+        if (!datalist) return;
+        datalist.innerHTML = investmentTypes
+          .map((type) => `<option value="${type}"></option>`)
+          .join('');
+      }
+
+      function collectInvestmentTypes() {
+        const values = new Set(investmentTypes);
+        animals.forEach((animal) => {
+          (animal.variations || []).forEach((variation) => {
+            if (variation._shortName?.trim()) values.add(variation._shortName.trim());
+          });
+        });
+        investmentTypes = [...values];
+        syncInvestmentTypes();
+      }
+
+      function iniciarDesdeCero() {
+        originalHeaders = DEFAULT_HEADERS;
+        animals = [];
+        orphanedVariations = [];
+        finalizarCargaUI();
+        addAnimal();
+      }
+      function toggleLoader(show, text = 'Procesando...') {
+        const el = document.getElementById('loadingOverlay');
+        document.getElementById('loadingText').innerText = text;
+        el.style.display = show ? 'flex' : 'none';
+      }
+      function handleFileUpload(e) {
+        const f = e.target.files[0];
+        if (!f) return;
+        toggleLoader(true, 'Leyendo CSV...');
+        Papa.parse(f, {
+          header: true,
+          skipEmptyLines: true,
+          complete: procesarCarga,
+          error: (er) => {
+            alert(er.message);
+            toggleLoader(false);
+          },
+        });
+        e.target.value = '';
+      }
+      function appsScriptDisponible() {
+        return (
+          typeof google !== 'undefined' && google.script && google.script.run
+        );
+      }
+      function normalizarHeaders(headers) {
+        const normalized = [...headers];
+        const numberIndex = normalized.indexOf(COL.M_NUM);
+        if (numberIndex >= 0 && !normalized.includes(COL.M_GENEALOGIA))
+          normalized.splice(numberIndex + 1, 0, COL.M_GENEALOGIA);
+        return normalized;
+      }
+      function normalizarOrigenYSellos(row) {
+        const normalize = (value) =>
+          (value || '').toString().trim().toLowerCase();
+        const validOrigins = ['nacional', 'brasilero'];
+        const attrValues = [COL.A3_VAL, COL.A4_VAL, COL.A5_VAL];
+        const originKey = attrValues.find((key) =>
+          validOrigins.includes(normalize(row[key])),
+        );
+
+        if (originKey && originKey !== COL.A4_VAL) {
+          const originValue = row[originKey];
+          row[originKey] = row[COL.A4_VAL];
+          row[COL.A4_VAL] = originValue;
+        }
+
+        if (
+          !validOrigins.includes(normalize(row[COL.A4_VAL])) &&
+          normalize(row[COL.A4_NAME]) === 'sellos'
+        ) {
+          [
+            COL.A4_NAME,
+            COL.A5_NAME,
+            COL.A4_VAL,
+            COL.A5_VAL,
+            COL.A4_VIS,
+            COL.A5_VIS,
+            COL.A4_GLO,
+            COL.A5_GLO,
+          ].forEach((key, index, keys) => {
+            if (index % 2 === 0)
+              [row[key], row[keys[index + 1]]] = [
+                row[keys[index + 1]],
+                row[key],
+              ];
+          });
+        }
+
+        if (
+          normalize(row[COL.A4_NAME]) === 'sellos' &&
+          normalize(row[COL.A5_NAME]) === 'origen'
+        ) {
+          [
+            COL.A4_NAME,
+            COL.A5_NAME,
+            COL.A4_VAL,
+            COL.A5_VAL,
+            COL.A4_VIS,
+            COL.A5_VIS,
+            COL.A4_GLO,
+            COL.A5_GLO,
+          ].forEach((key, index, keys) => {
+            if (index % 2 === 0)
+              [row[key], row[keys[index + 1]]] = [
+                row[keys[index + 1]],
+                row[key],
+              ];
+          });
+        }
+
+        if (!validOrigins.includes(normalize(row[COL.A4_VAL]))) {
+          const seals = [row[COL.A5_VAL], row[COL.A4_VAL]]
+            .flatMap((value) =>
+              (value || '')
+                .toString()
+                .split(',')
+                .map((item) => item.trim()),
+            )
+            .filter(Boolean);
+          row[COL.A4_VAL] = '';
+          row[COL.A4_NAME] = 'Origen';
+          row[COL.A4_VIS] = '';
+          row[COL.A4_GLO] = '1';
+          row[COL.A5_VAL] = [...new Set(seals)].join(', ');
+          row[COL.A5_NAME] = 'Sellos';
+          row[COL.A5_VIS] = row[COL.A5_VAL] ? '1' : '';
+          row[COL.A5_GLO] = '1';
+        }
+        return row;
+      }
+
+      function normalizarAtributosAnimal(row) {
+        const name1 = (row[COL.A1_NAME] || '').toString().trim().toLowerCase();
+        const name2 = (row[COL.A2_NAME] || '').toString().trim().toLowerCase();
+        const isType = (name) => name === 'tipo de inversión' || name === 'tipo';
+        const isState = (name) => name === 'estado';
+        if (isState(name1) && isType(name2)) {
+          ['NAME', 'VAL', 'VIS', 'GLO'].forEach((part) => {
+            const key1 = COL[`A1_${part}`];
+            const key2 = COL[`A2_${part}`];
+            [row[key1], row[key2]] = [row[key2], row[key1]];
+          });
+        }
+        return row;
+      }
+
+      function procesarCarga(results) {
+        originalHeaders = normalizarHeaders(results.meta.fields);
+        animals = [];
+        orphanedVariations = [];
+        let tempVars = [];
+        results.data.forEach((row) => {
+          normalizarOrigenYSellos(row);
+          normalizarAtributosAnimal(row);
+          if (row[COL.TIPO] === 'variable' || row[COL.TIPO] === 'simple') {
+            row[COL.PUB] = valorPublicado(row[COL.PUB]) ? '1' : '0';
+            row.variations = [];
+            animals.push(row);
+          } else tempVars.push(row);
+        });
+        tempVars.forEach((v) => {
+          let pId = (v[COL.SUPERIOR] || '').replace('id:', '').trim();
+          let p = animals.find((a) => a[COL.ID]?.toString() === pId);
+          v._shortName =
+            v[COL.A1_VAL] ||
+            v[COL.NOMBRE]?.split(' - ').pop().trim() ||
+            '';
+          v._rawPrice = v[COL.PRECIO] || '';
+          if (p) p.variations.push(v);
+          else orphanedVariations.push(v);
+        });
+        animals.forEach((a) => {
+          a.variations = normalizarVariaciones(a.variations);
+        });
+        collectInvestmentTypes();
+
+        toggleLoader(true, 'Buscando imágenes...');
+        let ids = new Set();
+        animals.forEach((a) => {
+          [a[COL.M_PAR1_F], a[COL.M_PAR2_F]].forEach((val) => {
+            if (val && !isNaN(val)) ids.add(val.toString().trim());
+          });
+        });
+        if (ids.size > 0 && appsScriptDisponible()) {
+          google.script.run
+            .withSuccessHandler((mapped) => {
+              animals.forEach((a) => {
+                if (a[COL.M_PAR1_F] && mapped[a[COL.M_PAR1_F]])
+                  a[COL.M_PAR1_F] = mapped[a[COL.M_PAR1_F]];
+                if (a[COL.M_PAR2_F] && mapped[a[COL.M_PAR2_F]])
+                  a[COL.M_PAR2_F] = mapped[a[COL.M_PAR2_F]];
+              });
+              finalizarCargaUI();
+            })
+            .withFailureHandler(function (e) {
+              finalizarCargaUI();
+            })
+            .wpGetUrlsFromIds(Array.from(ids));
+        } else finalizarCargaUI();
+      }
+
+      function finalizarCargaUI() {
+        toggleLoader(false);
+        document.getElementById('emptyState').style.display = 'none';
+        document.getElementById('adminPanel').classList.remove('hidden');
+        document.getElementById('btnExport').classList.remove('hidden');
+        document.getElementById('btnNewAnimal').classList.remove('hidden');
+        document.getElementById('searchBox').classList.remove('hidden');
+        renderTable();
+      }
+
+      function addAnimal() {
+        let a = {};
+        originalHeaders.forEach((h) => (a[h] = ''));
+        a[COL.ID] = globalIdCounter++;
+        a[COL.TIPO] = 'variable';
+        a[COL.PUB] = '0';
+        a[COL.NOMBRE] = 'Nuevo Animal';
+        a.variations = [];
+        animals.unshift(a);
+        renderTable();
+      }
+
+      function filtrarAnimales(value) {
+        renderTable(value);
+      }
+      function limpiarBusqueda() {
+        const search = document.getElementById('animalSearch');
+        search.value = '';
+        renderTable();
+      }
+      function obtenerAnimalesFiltrados() {
+        const value = (document.getElementById('animalSearch')?.value || '')
+          .trim()
+          .toLocaleLowerCase();
+        return value
+          ? animals.filter((a) =>
+              (a[COL.NOMBRE] || '')
+                .toString()
+                .toLocaleLowerCase()
+                .includes(value),
+            )
+          : animals;
+      }
+
+      function renderTable(
+        searchValue = document.getElementById('animalSearch')?.value || '',
+      ) {
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        const normalizedSearch = searchValue.trim().toLocaleLowerCase();
+        animals.forEach((a, idx) => {
+          if (
+            normalizedSearch &&
+            !(a[COL.NOMBRE] || '')
+              .toString()
+              .toLocaleLowerCase()
+              .includes(normalizedSearch)
+          )
+            return;
+          if (!a.variations) a.variations = [];
+          let nImg = (a[COL.IMAGEN] || '')
+            .split(',')
+            .filter((s) => s.trim()).length;
+          let nVar = a.variations.length;
+          const r = document.createElement('tr');
+          r.className = 'hover:bg-zinc-50';
+          r.innerHTML = `
+          <td class="table-cell bg-amber-50/40 border-r border-amber-200"><button onclick="openGallery(${idx})" class="w-full flex justify-center gap-2 py-1.5 px-3 bg-white border border-zinc-400 text-xs font-medium rounded-md shadow-sm"><i data-lucide="images" class="w-4 h-4"></i> ${nImg}</button></td>
+          <td class="table-cell bg-indigo-50/40 border-r border-indigo-200"><button onclick="openVariations(${idx})" class="w-full flex justify-center gap-2 py-1.5 px-3 bg-white border border-zinc-400 text-xs font-medium rounded-md shadow-sm"><i data-lucide="tags" class="w-4 h-4"></i> ${nVar}</button></td>
+          <td class="table-cell"><input type="text" list="list-categoria" class="input-field" value="${a[COL.CAT] || ''}" onchange="updateVal(${idx},'${COL.CAT}',this.value)"></td>
+          <td class="table-cell"><input type="text" class="input-field font-medium min-w-[200px]" value="${a[COL.NOMBRE] || ''}" onchange="updateVal(${idx},'${COL.NOMBRE}',this.value)"></td>
+          <td class="table-cell"><input type="text" class="input-field" value="${a[COL.M_NUM] || ''}" onchange="updateVal(${idx},'${COL.M_NUM}',this.value)"></td>
+          <td class="table-cell"><input type="text" class="input-field" value="${a[COL.M_GENEALOGIA] || ''}" onchange="updateVal(${idx},'${COL.M_GENEALOGIA}',this.value)"></td>
+          <td class="table-cell"><input type="text" class="input-field" value="${a[COL.M_REG] || ''}" onchange="updateVal(${idx},'${COL.M_REG}',this.value)"></td>
+          <td class="table-cell"><input type="text" list="list-estado" class="input-field" value="${a[COL.A2_VAL] || ''}" onchange="updateVal(${idx},'${COL.A2_VAL}',this.value)"></td>
+          <td class="table-cell"><label class="flex items-center justify-center gap-2 text-xs font-medium min-w-[110px]"><input type="checkbox" class="h-4 w-4 accent-green-600" ${valorPublicado(a[COL.PUB]) ? 'checked' : ''} onchange="updatePublished(${idx},this.checked)"><span>${valorPublicado(a[COL.PUB]) ? 'Publicado' : 'Borrador'}</span></label></td>
+          <td class="table-cell"><input type="text" class="input-field" value="${a[COL.A3_VAL] || ''}" onchange="updateVal(${idx},'${COL.A3_VAL}',this.value)"></td>
+          <td class="table-cell"><input type="text" list="list-origen" class="input-field" value="${a[COL.A4_VAL] || ''}" onchange="updateVal(${idx},'${COL.A4_VAL}',this.value)"></td>
+          <td class="table-cell bg-zinc-50/50">${generarMultiSelect(idx, COL.A5_VAL, OPTS_SELLOS, a[COL.A5_VAL])}</td>
+          ${['M_PADRE', 'M_PADRE_N', 'M_ABU_P', 'M_ABU_P_N', 'M_ABA_P', 'M_ABA_P_N'].map((k) => `<td class="table-cell bg-blue-50/20"><input type="text" class="input-field" value="${a[COL[k]] || ''}" onchange="updateVal(${idx},'${COL[k]}',this.value)"></td>`).join('')}
+          ${['M_MADRE', 'M_MADRE_N', 'M_ABU_M', 'M_ABU_M_N', 'M_ABA_M', 'M_ABA_M_N'].map((k) => `<td class="table-cell bg-pink-50/20"><input type="text" class="input-field" value="${a[COL[k]] || ''}" onchange="updateVal(${idx},'${COL[k]}',this.value)"></td>`).join('')}
+          <td class="table-cell bg-green-50/20"><input type="text" class="input-field" value="${a[COL.M_PAR1] || ''}" onchange="updateVal(${idx},'${COL.M_PAR1}',this.value)"></td>
+          <td class="table-cell bg-green-50/20"><input type="text" class="input-field" value="${a[COL.M_PAR1_T] || ''}" onchange="updateVal(${idx},'${COL.M_PAR1_T}',this.value)"></td>
+          <td class="table-cell bg-green-50/20">${generarInputImgTabla(idx, COL.M_PAR1_F, a[COL.M_PAR1_F])}</td>
+          <td class="table-cell bg-green-50/20"><input type="text" class="input-field" value="${a[COL.M_PAR2] || ''}" onchange="updateVal(${idx},'${COL.M_PAR2}',this.value)"></td>
+          <td class="table-cell bg-green-50/20"><input type="text" class="input-field" value="${a[COL.M_PAR2_T] || ''}" onchange="updateVal(${idx},'${COL.M_PAR2_T}',this.value)"></td>
+          <td class="table-cell bg-green-50/20">${generarInputImgTabla(idx, COL.M_PAR2_F, a[COL.M_PAR2_F])}</td>
+          <td class="table-cell text-center"><button type="button" onclick="removeAnimal(${idx})" class="inline-flex items-center justify-center p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md" title="Eliminar animal"><i data-lucide="trash-2" class="w-5 h-5 pointer-events-none"></i></button></td>
+        `;
+          tbody.appendChild(r);
+        });
+        lucide.createIcons();
+      }
+
+      function updateVal(idx, k, v) {
+        animals[idx][k] = v;
+      }
+      function updatePublished(idx, published) {
+        animals[idx][COL.PUB] = published ? '1' : '0';
+        renderTable();
+      }
+      function removeAnimal(idx) {
+        const name = animals[idx]?.[COL.NOMBRE] || 'este animal';
+        if (!confirm(`¿Eliminar "${name}"? También se eliminarán sus tipos de inversión.`))
+          return;
+        animals.splice(idx, 1);
+        renderTable();
+      }
+
+      let actVIdx = -1;
+      let actV = [];
+      function normalizarVariaciones(variations) {
+        return JSON.parse(JSON.stringify(variations || [])).filter(
+          (variation) => variation._shortName?.trim(),
+        );
+      }
+      function openVariations(idx) {
+        actVIdx = idx;
+        actV = normalizarVariaciones(animals[idx].variations);
+        renderVList();
+        document.getElementById('variationsModal').style.display = 'flex';
+      }
+      function renderVList() {
+        const c = document.getElementById('variationsList');
+        c.innerHTML = '';
+        actV.forEach((v, i) => {
+          c.innerHTML += `<div class="flex items-center gap-2 bg-white p-3 border border-zinc-400 rounded-lg shadow-sm"><span class="text-xs font-bold text-zinc-400 w-5">${i + 1}</span><input type="text" list="list-inversiones" class="input-field flex-1" value="${v._shortName || ''}" onchange="actV[${i}]._shortName=this.value.trim();collectInvestmentTypes()"><div class="relative w-40"><span class="absolute left-3 top-2 text-zinc-500 text-xs">$</span><input type="text" class="input-field pl-7 font-medium text-green-700" value="${v._rawPrice ? new Intl.NumberFormat('es-CO').format(v._rawPrice) : ''}" oninput="actV[${i}]._rawPrice=this.value.replace(/\D/g,'');this.value=new Intl.NumberFormat('es-CO').format(actV[${i}]._rawPrice)"></div><button type="button" onclick="actV.splice(${i},1);renderVList()" class="p-2 text-red-600 hover:bg-red-50 rounded" title="Eliminar tipo"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div>`;
+        });
+        lucide.createIcons();
+      }
+      function saveVariations() {
+        animals[actVIdx].variations = normalizarVariaciones(actV);
+        collectInvestmentTypes();
+        closeVariations();
+        renderTable();
+      }
+      function addVariation() {
+        actV.push({ _shortName: '', _rawPrice: '' });
+        renderVList();
+      }
+      function openInvestmentTypes() {
+        collectInvestmentTypes();
+        renderInvestmentTypes();
+        document.getElementById('investmentTypesModal').style.display = 'flex';
+      }
+      function renderInvestmentTypes() {
+        const list = document.getElementById('investmentTypesList');
+        list.innerHTML = investmentTypes
+          .map(
+            (type, index) =>
+              `<div class="flex items-center gap-2"><input class="input-field" value="${type}" onchange="renameInvestmentType(${index},this.value)"><button type="button" onclick="removeInvestmentType(${index})" class="p-2 text-red-600 hover:bg-red-50 rounded" title="Eliminar tipo"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div>`,
+          )
+          .join('');
+        lucide.createIcons();
+      }
+      function addInvestmentType() {
+        investmentTypes.push('Nuevo tipo');
+        renderInvestmentTypes();
+      }
+      function renameInvestmentType(index, value) {
+        const next = value.trim();
+        if (!next) return renderInvestmentTypes();
+        const previous = investmentTypes[index];
+        investmentTypes[index] = next;
+        animals.forEach((animal) =>
+          (animal.variations || []).forEach((variation) => {
+            if (variation._shortName === previous) variation._shortName = next;
+          }),
+        );
+        actV.forEach((variation) => {
+          if (variation._shortName === previous) variation._shortName = next;
+        });
+        syncInvestmentTypes();
+        renderInvestmentTypes();
+        renderVList();
+      }
+      function removeInvestmentType(index) {
+        const type = investmentTypes[index];
+        const used = animals.some((animal) =>
+          (animal.variations || []).some((variation) => variation._shortName === type),
+        );
+        if (used && !confirm(`"${type}" está usado por un animal. ¿Eliminarlo de todos?`))
+          return;
+        if (used)
+          animals.forEach((animal) => {
+            animal.variations = (animal.variations || []).filter(
+              (variation) => variation._shortName !== type,
+            );
+          });
+        investmentTypes.splice(index, 1);
+        syncInvestmentTypes();
+        renderInvestmentTypes();
+        renderTable();
+      }
+      function closeInvestmentTypes() {
+        document.getElementById('investmentTypesModal').style.display = 'none';
+      }
+      function closeVariations() {
+        document.getElementById('variationsModal').style.display = 'none';
+      }
+
+      let actGIdx = -1;
+      let actG = [];
+      function openGallery(idx) {
+        actGIdx = idx;
+        document.getElementById('galleryAnimalName').innerText =
+          animals[idx][COL.NOMBRE] || 'Animal sin nombre';
+        actG = (animals[idx][COL.IMAGEN] || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter((s) => s);
+        renderGList();
+        document.getElementById('galleryModal').style.display = 'flex';
+      }
+      function renderGList() {
+        const c = document.getElementById('galleryList');
+        c.innerHTML = actG.length
+          ? ''
+          : '<p class="py-10 text-center text-zinc-500">Sin imágenes</p>';
+        actG.forEach((u, i) => {
+          c.innerHTML += `<div class="flex items-center gap-2 bg-white p-3 border border-zinc-400 rounded-lg shadow-sm"><span class="text-xs font-bold text-zinc-400 w-5">${i + 1}</span><input type="text" class="input-field flex-1" value="${u}" onchange="actG[${i}]=this.value"><button onclick="openImgPure(this.previousElementSibling.value)" class="p-2 text-zinc-800"><i data-lucide="eye" class="w-4 h-4"></i></button><button onclick="actG.splice(${i},1);renderGList()" class="p-2 text-red-600"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div>`;
+        });
+        lucide.createIcons();
+      }
+      function addGalleryItem() {
+        actG.push('');
+        renderGList();
+      }
+      function saveGallery() {
+        animals[actGIdx][COL.IMAGEN] = actG.filter((u) => u.trim()).join(', ');
+        closeGallery();
+        renderTable();
+      }
+      function closeGallery() {
+        document.getElementById('galleryModal').style.display = 'none';
+      }
+
+      function generarInputImgTabla(idx, k, v) {
+        return `<div class="flex items-center gap-1 min-w-[200px]"><input type="text" class="input-field text-xs" value="${v || ''}" onchange="updateVal(${idx},'${k}',this.value)"><button onclick="openImgPure(this.previousElementSibling.value)" class="p-1.5 bg-zinc-100 border border-zinc-400 rounded-md"><i data-lucide="image" class="w-5 h-5"></i></button></div>`;
+      }
+      function openImgPure(u) {
+        if (!u?.startsWith('http')) return alert('URL no válida');
+        document.getElementById('modalImg').src = u.split(',')[0].trim();
+        const m = document.getElementById('imageModal');
+        m.style.display = 'flex';
+        setTimeout(() => (m.style.opacity = '1'), 10);
+      }
+      function closeImage() {
+        const m = document.getElementById('imageModal');
+        m.style.opacity = '0';
+        setTimeout(() => {
+          m.style.display = 'none';
+          document.getElementById('modalImg').src = '';
+        }, 300);
+      }
+
+      function toggleDropdown(id, e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const m = document.getElementById(id);
+        const hidden = m.classList.contains('hidden');
+        document
+          .querySelectorAll('.custom-dropdown-content')
+          .forEach((x) => x.classList.add('hidden'));
+        if (hidden) {
+          m.classList.remove('hidden');
+          const r = e.currentTarget.getBoundingClientRect();
+          m.style.position = 'fixed';
+          m.style.width = Math.max(r.width, 220) + 'px';
+          m.style.left = r.left + 'px';
+          if (window.innerHeight - r.bottom < 260) {
+            m.style.top = 'auto';
+            m.style.bottom = window.innerHeight - r.top + 4 + 'px';
+          } else {
+            m.style.top = r.bottom + 4 + 'px';
+            m.style.bottom = 'auto';
+          }
+        }
+      }
+      function generarMultiSelect(idx, k, opts, val) {
+        let cur = (val || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter((s) => s);
+        let all = [...opts];
+        cur.forEach((v) => {
+          if (v && !all.includes(v)) all.push(v);
+        });
+        let lbl = cur.join(', ') || 'Seleccionar...';
+        const normK = k.replace(/[: ]/g, '_');
+        const labelId = `lbl-${normK}-${idx}`;
+        let checks = all
+          .map(
+            (o) =>
+              `<label class="checkbox-item" onclick="event.stopPropagation()"><input type="checkbox" value="${o}" ${cur.includes(o) ? 'checked' : ''} onchange="toggleMulti(${idx},'${k}',this.value,this.checked, '${labelId}')"><span>${o}</span></label>`,
+          )
+          .join('');
+        let menuId = `drop-${normK}-${idx}`;
+        return `<div class="min-w-[180px] relative"><div class="input-field cursor-pointer flex justify-between items-center" onclick="toggleDropdown('${menuId}', event)"><span class="truncate pointer-events-none" id="${labelId}">${lbl}</span><i data-lucide="chevron-down" class="w-4 h-4"></i></div><div id="${menuId}" class="custom-dropdown-content hidden bg-white border-2 border-zinc-400 shadow-2xl rounded-md p-2 z-[99999] flex flex-col whitespace-normal max-w-[280px]" onclick="event.stopPropagation()">${checks}</div></div>`;
+      }
+      function toggleMulti(idx, k, v, c, labelId) {
+        let arr = (animals[idx][k] || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter((s) => s);
+        if (c && !arr.includes(v)) arr.push(v);
+        else if (!c) arr = arr.filter((x) => x !== v);
+        const finalVal = arr.sort().join(', ');
+        animals[idx][k] = finalVal;
+        const labelEl = document.getElementById(labelId);
+        if (labelEl) labelEl.innerText = finalVal || 'Seleccionar...';
+      }
+
+      function exportarCSV() {
+        animalsParaExportar = obtenerAnimalesFiltrados();
+        if (animalsParaExportar.length === 0)
+          return alert('No se encontró ningún animal con ese nombre.');
+        toggleLoader(true, 'Convirtiendo imágenes...');
+        let urls = new Set();
+        animalsParaExportar.forEach((a) => {
+          [a[COL.M_PAR1_F], a[COL.M_PAR2_F]].forEach((u) => {
+            if (u?.toString().startsWith('http')) urls.add(u.trim());
+          });
+        });
+        if (urls.size > 0 && appsScriptDisponible())
+          google.script.run
+            .withSuccessHandler(finalizarExportacion)
+            .withFailureHandler((e) => {
+              alert(e.message);
+              toggleLoader(false);
+            })
+            .wpGetIdsFromUrls(Array.from(urls));
+        else finalizarExportacion({});
+      }
+
+      function finalizarExportacion(mapped) {
+        let out = [];
+        let errs = [];
+
+        // HASH ÚNICO IRREPETIBLE para toda esta exportación
+        const exportHash =
+          Date.now().toString(36).toUpperCase() +
+          Math.random().toString(36).substring(2, 6).toUpperCase();
+
+        animalsParaExportar.forEach((a, aIndex) => {
+          const variations = a.variations || [];
+          let p1 = a[COL.M_PAR1_F] ? a[COL.M_PAR1_F].toString().trim() : '';
+          let p2 = a[COL.M_PAR2_F] ? a[COL.M_PAR2_F].toString().trim() : '';
+          if (p1.startsWith('http')) {
+            if (mapped[p1]) a[COL.M_PAR1_F] = mapped[p1];
+            else {
+              errs.push(p1);
+              a[COL.M_PAR1_F] = '';
+            }
+          }
+          if (p2.startsWith('http')) {
+            if (mapped[p2]) a[COL.M_PAR2_F] = mapped[p2];
+            else {
+              errs.push(p2);
+              a[COL.M_PAR2_F] = '';
+            }
+          }
+
+          // SKU y verificación de producto nuevo
+          let isNewProduct = Number(a[COL.ID]) > 500000 || !a[COL.ID];
+          if (isNewProduct || !a[COL.SKU]) {
+            a[COL.SKU] = 'NUEVO-' + exportHash + '-' + aIndex;
+          }
+
+          // 🚨 REGLA 4: Guardamos el SKU puro para amarrar a los hijos (sin 'sku:')
+          let parentLinker = a[COL.SKU];
+
+          // 🚨 REGLA 1: Vaciar columnas ID, Inventario y Superior para el padre
+          a[COL.ID] = '';
+          a['Inventario'] = '';
+          a[COL.SUPERIOR] = '';
+
+          a[COL.TIPO] = 'variable';
+          a[COL.PUB] = valorPublicado(a[COL.PUB]) ? '1' : '0';
+          a[COL.DEST] = '0';
+          a[COL.VIS] = 'visible';
+          a[COL.IMP_EST] = 'taxable';
+          a[COL.IMP_CLA] = '';
+          a[COL.EXIST] = '1';
+          a[COL.RES] = '0';
+          a[COL.V_IND] = '0';
+          a[COL.VALOR] = '1';
+          a[COL.POS] = '0';
+
+          Object.keys(ACF_KEYS).forEach((k) => {
+            a[k] = ACF_KEYS[k];
+          });
+
+          // Extraemos las opciones
+          let childNames = [];
+          variations.forEach((v) => {
+            let sn = v._shortName || '';
+            if (sn && !childNames.includes(sn)) childNames.push(sn);
+          });
+          if (childNames.length === 0) {
+            childNames = (a[COL.A1_VAL] || '')
+              .split(',')
+              .map((s) => s.trim())
+              .filter((s) => s);
+          }
+
+          // 🚨 REGLA 3: Intercambiamos el orden de los atributos (Tipo de inversión = 1, Estado = 2)
+          let valEstado = a[COL.A2_VAL] || '';
+
+          a[COL.A1_NAME] = 'Tipo de Inversión';
+          if (childNames.length > 0) {
+            a[COL.A1_VAL] = childNames.sort().join(', ');
+            a[COL.A1_VIS] = '1';
+          } else {
+            a[COL.A1_VAL] = '';
+            a[COL.A1_VIS] = '';
+          }
+          a[COL.A1_GLO] = '1'; // 🚨 REGLA 5
+
+          a[COL.A2_NAME] = 'Estado';
+          a[COL.A2_VAL] = valEstado;
+          a[COL.A2_VIS] = valEstado ? '1' : '';
+          a[COL.A2_GLO] = '1'; // 🚨 REGLA 5
+
+          // Resto de atributos del padre
+          a[COL.A3_NAME] = 'Raza';
+          a[COL.A4_NAME] = 'Origen';
+          a[COL.A5_NAME] = 'Sellos';
+          a[COL.M_RAZA] = a[COL.A3_VAL] || '';
+          [3, 4, 5].forEach((i) => {
+            a[`Atributo visible ${i}`] = a[COL[`A${i}_VAL`]] ? '1' : '';
+            a[`Atributo global ${i}`] = '1'; // 🚨 REGLA 5
+          });
+
+          let sArr = (a[COL.A5_VAL] || '').split(',').map((s) => s.trim());
+          a[COL.M_OVO] = sArr.includes('Ovocitos') ? '1' : '0';
+          a[COL.M_UBRE] = sArr.includes('Ubre') ? '1' : '0';
+          a[COL.M_EST] = sArr.includes('Estructura') ? '1' : '0';
+          a[COL.M_VOL] = sArr.includes('Volumen de producción') ? '1' : '0';
+          a[COL.M_MSOB] = sArr.includes('Madre sobresaliente') ? '1' : '0';
+          a[COL.M_PPAST] = sArr.includes('Probada de pastoreo') ? '1' : '0';
+          a[COL.M_A2A2] = sArr.includes('A2A2') ? '1' : '0';
+          a[COL.M_GEN] = sArr.includes('Genoma') ? '1' : '0';
+          a[COL.M_PISTA] = sArr.includes('Pista') ? '1' : '0';
+
+          let aExp = { ...a };
+          delete aExp.variations;
+          out.push(aExp);
+
+          let varsToExport =
+            variations && variations.length > 0
+              ? variations
+              : childNames.map((name) => {
+                  let tempVar = {};
+                  originalHeaders.forEach((h) => (tempVar[h] = ''));
+                  tempVar._shortName = name;
+                  tempVar._rawPrice = '';
+                  return tempVar;
+                });
+
+          varsToExport.forEach((v, index) => {
+            let sn = v._shortName || '';
+            if (!sn) return;
+
+            v[COL.TIPO] = 'variation';
+            v[COL.PUB] = valorPublicado(a[COL.PUB]) ? '1' : '0';
+            v[COL.DEST] = '0';
+            v[COL.VIS] = 'visible';
+            v[COL.IMP_EST] = 'taxable';
+            v[COL.IMP_CLA] = 'parent';
+            v[COL.EXIST] = '1';
+            v[COL.RES] = '0';
+            v[COL.V_IND] = '0';
+            v[COL.VALOR] = '0';
+            v[COL.POS] = index;
+            v[COL.PRECIO] = v._rawPrice || a[COL.PRECIO] || '';
+
+            // 🚨 REGLA 4: Amarrar variación al SKU del padre
+            v[COL.SUPERIOR] = parentLinker;
+
+            // 🚨 REGLA 2: Vaciar campos en los hijos
+            v[COL.ID] = '';
+            v[COL.NOMBRE] = '';
+            v['Descripción corta'] = '';
+            v['Descripción'] = '';
+            v[COL.CAT] = '';
+            v['Etiquetas'] = '';
+            v[COL.IMAGEN] = '';
+            v['Productos agrupados'] = '';
+            v['Ventas dirigidas'] = '';
+            v['Ventas cruzadas'] = '';
+
+            // 🚨 REGLA 3 y 5: Tipo de Inversión ahora está obligado a ser el Atributo 1
+            v[COL.A1_NAME] = 'Tipo de Inversión';
+            v[COL.A1_VAL] = sn;
+            v[COL.A1_VIS] = '';
+            v[COL.A1_GLO] = '1'; // 🚨 REGLA 5
+
+            v[COL.A2_NAME] = '';
+            v[COL.A2_VAL] = '';
+            v[COL.A2_VIS] = '';
+            v[COL.A2_GLO] = '';
+            v[COL.A3_NAME] = '';
+            v[COL.A3_VAL] = '';
+            v[COL.A3_VIS] = '';
+            v[COL.A3_GLO] = '';
+            v[COL.A4_NAME] = '';
+            v[COL.A4_VAL] = '';
+            v[COL.A4_VIS] = '';
+            v[COL.A4_GLO] = '';
+            v[COL.A5_NAME] = '';
+            v[COL.A5_VAL] = '';
+            v[COL.A5_VIS] = '';
+            v[COL.A5_GLO] = '';
+
+            if (isNewProduct || Number(v[COL.ID]) > 500000 || !v[COL.ID]) {
+              v[COL.SKU] = a[COL.SKU] + '-V' + index;
+            }
+
+            Object.keys(ACF_KEYS).forEach((k) => {
+              v[k] = ACF_KEYS[k];
+            });
+            let vExp = { ...v };
+            delete vExp._shortName;
+            delete vExp._rawPrice;
+            delete vExp.variations;
+            out.push(vExp);
+          });
+        });
+
+        const searchActive =
+          (document.getElementById('animalSearch')?.value || '').trim() !== '';
+        if (!searchActive)
+          orphanedVariations.forEach((v) => {
+            delete v._shortName;
+            delete v._rawPrice;
+            out.push(v);
+          });
+        if (errs.length)
+          alert('⚠️ ' + errs.length + ' imágenes no se encontraron en WP.');
+
+        const csv = Papa.unparse(out, { columns: originalHeaders });
+        const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), csv], {
+          type: 'text/csv;charset=utf-8',
+        });
+        const u = URL.createObjectURL(blob);
+        const aL = document.createElement('a');
+        aL.href = u;
+        aL.download = `WooAdmin_PRO_${Date.now()}.csv`;
+        aL.click();
+        toggleLoader(false);
+      }
+    </script>
+  </body>
+</html>
