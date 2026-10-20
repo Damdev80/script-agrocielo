@@ -863,6 +863,64 @@
         return row;
       }
 
+      function normalizarAtributosPorNombre(row) {
+        const normalize = (value) =>
+          (value || '')
+            .toString()
+            .trim()
+            .toLocaleLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+        const attributes = [];
+        for (let index = 1; index <= 5; index++) {
+          const nameKey = COL[`A${index}_NAME`];
+          const valueKey = COL[`A${index}_VAL`];
+          if (!Object.prototype.hasOwnProperty.call(row, nameKey)) continue;
+          attributes.push({
+            name: normalize(row[nameKey]),
+            value: row[valueKey] || '',
+            visible: row[COL[`A${index}_VIS`]] || '',
+            global: row[COL[`A${index}_GLO`]] || '',
+          });
+        }
+
+        const findAttribute = (...names) =>
+          attributes.find((attribute) => names.includes(attribute.name));
+        const type = findAttribute('tipo de inversion', 'tipo');
+        const state = findAttribute('estado');
+        const origin = findAttribute('origen');
+        const seals = findAttribute('sellos', 'sello');
+
+        const copyAttribute = (index, attribute) => {
+          if (!attribute) return;
+          row[COL[`A${index}_NAME`]] =
+            index === 1
+              ? 'Tipo de Inversión'
+              : index === 2
+                ? 'Estado'
+                : index === 4
+                  ? 'Origen'
+                  : 'Sellos';
+          row[COL[`A${index}_VAL`]] = attribute.value;
+          row[COL[`A${index}_VIS`]] = attribute.visible;
+          row[COL[`A${index}_GLO`]] = attribute.global;
+        };
+
+        if (type) copyAttribute(1, type);
+        if (state) copyAttribute(2, state);
+        if (origin) copyAttribute(4, origin);
+        if (seals) copyAttribute(5, seals);
+
+        // Algunos CSV antiguos dejan los sellos en otro atributo sin nombre
+        // consistente; el nombre tiene prioridad y este es solo un respaldo.
+        if (!seals && row[COL.A5_VAL]) {
+          row[COL.A5_NAME] = 'Sellos';
+          row[COL.A5_VIS] = row[COL.A5_VIS] || '1';
+          row[COL.A5_GLO] = row[COL.A5_GLO] || '1';
+        }
+        return row;
+      }
+
       function normalizarAtributosAnimal(row) {
         const name1 = (row[COL.A1_NAME] || '').toString().trim().toLowerCase();
         const name2 = (row[COL.A2_NAME] || '').toString().trim().toLowerCase();
@@ -884,7 +942,15 @@
         orphanedVariations = [];
         let tempVars = [];
         results.data.forEach((row) => {
+          normalizarAtributosPorNombre(row);
+          const importedSeals = row[COL.A5_VAL] || '';
           normalizarOrigenYSellos(row);
+          if (importedSeals.trim()) {
+            row[COL.A5_NAME] = 'Sellos';
+            row[COL.A5_VAL] = importedSeals;
+            row[COL.A5_VIS] = '1';
+            row[COL.A5_GLO] = '1';
+          }
           normalizarAtributosAnimal(row);
           if (row[COL.TIPO] === 'variable' || row[COL.TIPO] === 'simple') {
             row[COL.PUB] = valorPublicado(row[COL.PUB]) ? '1' : '0';
